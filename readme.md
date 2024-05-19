@@ -10,12 +10,12 @@ nuget install RestApiTransactions
 
 ## Activation
 
-Add to your Program.cs
+Program.cs
 ```C#
 app.UseRestApiTransactions();
 ```
 
-Add to your project´s appsettings.json
+Project´s appsettings.json
 ```json
 "RestApiTransactions": {
 	"Mode": "Headers",
@@ -33,7 +33,10 @@ If invalid or no value is set to **Mode**, then the middleware is not activated.
 continue running after the timeout, but it does not block anymore other requests. By default the timeout is 5 seconds.
 
 ## Usage
-In your controller you can add attributes to endpoints that require blocking
+
+### Attributes
+
+In controllers
 ```C#
 [HttpGet("{id}")]
 [RestApiRead("clients-table", "companies-table")]
@@ -44,16 +47,21 @@ public string GetClient(long id) { ... }
 public string GetClient(long id, [FromBody] Client client) { ... }
 ```
 
-**RestApiRead** blocks requests using **RestApiWrite** and transactions with the specified keywords.
+**RestApiRead** blocks during it's execution requests using **RestApiWrite** and header transactions with the specified
+keywords.
 
 **RestApiWrite** blocks all request using the specified keywords.
+
 Attributes block other request only while they are executing. When the request finishes, the keywords are freed.
 
+### Header transactions
 
-In order to block several requests, you need to you transaction headers. These are:
+Header transactions block keywords between several requests, until the transaction ends.
+
+Request headers:
 - **RestApiTransaction-Start**, which starts a transaction. Value is comma-separated list of keywords to block.
-The response will contain header **RestApiTransaction-Id** which is required to execute other requests with specified
-- keywords during the transaction.
+The response will contain header **RestApiTransaction-Id** which is required to execute other requests during the
+transaction that use the same keywords.
 - **RestApiTransaction-Id** informs to which transaction this request belongs.
 - **RestApiTransaction-End** ends the current transaction.
 
