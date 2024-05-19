@@ -5,8 +5,13 @@ using System.Diagnostics;
 
 namespace RestApiTransaction;
 
-public class RestApiTransactionsMiddleware(RequestDelegate next)
+public class RestApiTransactionsMiddleware
 {
+	public RestApiTransactionsMiddleware(RequestDelegate next)
+	{
+		_next = next;
+	}
+
 	/// <summary>
 	/// Process the request
 	/// </summary>
@@ -21,7 +26,7 @@ public class RestApiTransactionsMiddleware(RequestDelegate next)
 		)
 		{
 			Debug.WriteLine($"Activation header missing, excuting \"{context.Request.Path}\"");
-			await next(context);
+			await _next(context);
 			Debug.WriteLine($"Finished: \"{context.Request.Path}\"");
 			return;
 		}
@@ -51,19 +56,19 @@ public class RestApiTransactionsMiddleware(RequestDelegate next)
 					|| e is RestApiWriteAttribute
 				)
 				.SelectMany(a =>
-					(a as IRestApiAttribute)?.Parameters ?? []
+					(a as IRestApiAttribute)?.Parameters ?? Array.Empty<string>()
 				)
 				.Distinct()
-				?? [],
+				?? new List<string>(),
 			Write = context.GetEndpoint()?.Metadata
 				.Where((e) =>
 					e is RestApiWriteAttribute
 				)
 				.SelectMany(a =>
-					(a as IRestApiAttribute)?.Parameters ?? []
+					(a as IRestApiAttribute)?.Parameters ?? Array.Empty<string>()
 				)
 				.Distinct()
-				?? [],
+				?? new List<string>(),
 			Promise = new()
 		};
 
@@ -79,7 +84,7 @@ public class RestApiTransactionsMiddleware(RequestDelegate next)
 			await queueItem.Promise.Task;
 
 			Debug.WriteLine($"Execute: \"{context.Request.Path}\"");
-			await next(context);
+			await _next(context);
 
 			if (queueItem.TransactionId != null
 				&& context.Request.Headers.ContainsKey(RestApiParameters.HeaderEndTransaction)
@@ -93,7 +98,7 @@ public class RestApiTransactionsMiddleware(RequestDelegate next)
 		else
 		{
 			Debug.WriteLine($"Execute: \"{context.Request.Path}\"");
-			await next(context);
+			await _next(context);
 		}
 
 		Debug.WriteLine($"Finished: \"{context.Request.Path}\"");
@@ -345,21 +350,40 @@ public class RestApiTransactionsMiddleware(RequestDelegate next)
 		Headers
 	};
 
+	readonly RequestDelegate _next;
+
 	private static readonly object _lock = new();
 
-	private readonly static ConcurrentDictionary<string, ConcurrentDictionary<Guid, bool>> _reading = [];
-	private readonly static ConcurrentDictionary<string, ConcurrentDictionary<Guid, bool>> _writing = [];
-	private readonly static ConcurrentDictionary<Guid, TransactionItem> _transactions = [];
-	private readonly static List<QueueItem> _queue = [];
+	private readonly static ConcurrentDictionary<string, ConcurrentDictionary<Guid, bool>> _reading = new();
+	private readonly static ConcurrentDictionary<string, ConcurrentDictionary<Guid, bool>> _writing = new();
+	private readonly static ConcurrentDictionary<Guid, TransactionItem> _transactions = new();
+	private readonly static List<QueueItem> _queue = new();
 
 	private readonly record struct QueueItem
 	{
 		public readonly Guid Id { get; init; }
 		public readonly bool IsTransaction { get; init; }
 		public readonly Guid? TransactionId { get; init; }
-		public required IEnumerable<string> Read { get; init; }
-		public required IEnumerable<string> Write { get; init; }
-		public required TaskCompletionSource Promise { get; init; }
+		public readonly IEnumerable<string> Read { get; init; }
+		public readonly IEnumerable<string> Write { get; init; }
+		public readonly TaskCompletionSource Promise { get; init; }
+
+		public QueueItem(
+			Guid id,
+			bool isTransaction,
+			Guid transactionId,
+			IEnumerable<string> read,
+			IEnumerable<string> write,
+			TaskCompletionSource promise
+		)
+		{
+			Id = id;
+			IsTransaction = isTransaction;
+			TransactionId = transactionId;
+			Read = read;
+			Write = write;
+			Promise = promise;
+		}
 	}
 
 	private readonly record struct TransactionItem

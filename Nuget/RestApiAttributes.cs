@@ -6,13 +6,23 @@ interface IRestApiAttribute
 }
 
 [AttributeUsage(AttributeTargets.Method)]
-public class RestApiReadAttribute(params string[] parameters) : Attribute, IRestApiAttribute
+public class RestApiReadAttribute : Attribute, IRestApiAttribute
 {
-	public string[] Parameters { get; } = parameters;
+	public string[] Parameters { get; }
+
+	public RestApiReadAttribute(params string[] parameters)
+	{
+		Parameters = parameters;
+	}
 }
 
 [AttributeUsage(AttributeTargets.Method)]
-public class RestApiWriteAttribute(params string[] parameters) : Attribute, IRestApiAttribute
+public class RestApiWriteAttribute : Attribute, IRestApiAttribute
 {
-	public string[] Parameters { get; } = parameters;
+	public string[] Parameters { get; }
+
+	public RestApiWriteAttribute(params string[] parameters)
+	{
+		Parameters = parameters;
+	}
 }
